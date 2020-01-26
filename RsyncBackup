@@ -1,0 +1,13 @@
+#!/bin/bash
+now=$(date +"%d_%m_%y") ## Saving date format in a variable 
+now_dir=$(cat /running_dir)
+backup=$(cat $now_dir/destination.list)
+mkdir -p $backup/$now
+backup_dir=$(echo $backup/$now)
+touch $now_dir/$now.log 
+if [ ! "$(ls -A "$backup_dir")" ] ## Check if directory is empty. if yes, take full backup. 
+then
+    rsync --log-file=$now_dir/$now.log -Iva --progress `cat $now_dir/source.list|tr -s ',' ' '` $backup_dir ## Full backup
+else
+    rsync --log-file=$now_dir/$now.log -aP --link-dest=$backup_dir `cat $now_dir/source.list|tr -s ',' ' '` $backup_dir ## Incremental backup using hardlink. 
+fi
