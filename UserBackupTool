@@ -1,0 +1,105 @@
+#!/bin/bash
+
+echo "***********"
+echo "* Linux Backup Tool *"
+echo "***********"
+echo "A – Add Source Directories"
+echo "B – Remove Source Directories"
+echo "C – Set Destination Directory"
+echo "D – Set Backup Time"
+echo "E – Check Log File Contents"
+echo "X - Exit"
+
+echo $PWD > /running_dir ## Preserving directory where script is running. 
+while : 
+do
+	read -p "Choose an option: " option
+	if [ "$option" = "X" ] ## Exit script if input is X otherwise keep running
+	then
+		break
+	fi
+    case "${option}"
+    in
+		A)  touch $PWD/source.list
+		    read -p "Enter a new directory: " dir_name
+		    if [ -d "$dir_name" ]; then ## Checking if directory exists
+				grep $dir_name $PWD/source.list > /dev/null 2>&1 ## Checking if directory name already exists in source.list
+				if [ $? -ne 0 ]
+			    then
+			 		if [ -s $PWD/source.list ]
+			 		then
+			 			sed -i 's@$@'"$dir_name"',@' $PWD/source.list ## Adding directory names to a directory
+			 		else
+			 			echo "$dir_name," > $PWD/source.list ## Run for first iteration when file is empty
+			 		fi
+			    	echo -e "Directory added successfully"
+			    else
+			    	echo -e "Directory is already added"
+				fi
+			else
+				echo -e "\nDirectory does not exist"
+			fi
+		    ;;
+		B)  echo -e "Directory\n---------"
+			cat source.list|tr -s ',' '\n' ## Printing directory list from one line to multiple lines. 
+			echo -e "---------"
+			read -p "Choose a directory: " dir_remove
+			grep $dir_remove $PWD/source.list > /dev/null 2>&1
+			if [ $? -ne 0 ]
+			then
+				echo -e "Directory does not exist"
+			else
+				sed -i "s@$dir_remove,@@g" $PWD/source.list ## Removing directory name from a file
+				echo -e "Directory removed successfully."
+			fi
+		    ;;
+		C)  read -p "Enter the Destination Directory: " dir_dest
+			if [ -d "$dir_dest" ] ## Checking if destination directory already exists
+			then
+				echo -e "$dir_dest" > $PWD/destination.list
+			else
+				mkdir -p $dir_dest
+				echo -e "$dir_dest" > $PWD/destination.list 
+			fi
+			echo -e "Directory created successfully."
+		    ;;
+		D)	read -p "Enter the hour when to run the backup: " hour_input
+			if [[ $hour_input =~ ^([0-9]{2})$ ]]; then ## Making sure that the hour format is correct. 0-23
+			        if (( $hour_input < 24 )); then
+			        	(crontab -l 2>/dev/null; echo -e "0 $hour_input * * * $PWD/CreateBackup") | crontab - ## Adding Crontab entry 
+			        else
+			        	echo "Hour format is wrong"
+			        fi
+			else
+			    echo >&2 "Hour format is wrong"
+			fi
+		   ;;
+		E)	echo -e "Number\t\t\tLog File Name" ## Printing text
+			echo -e "------\t\t\t-------------"
+			ls -1 $PWD/*.log | awk '{print NR,"\t\t\t",$0}'
+			read -p 'Enter the name of the log file: ' log_file
+			if [ -f $log_file ]; then
+  				read -p 'Enter the number of lines to display: ' line_number
+  				echo "****"
+				echo "$log_file"
+				echo "****"
+				cat $log_file | tail -n $line_number ## Printing last given lines of log file. 
+  			else
+			echo "Incorrect log file name."
+			fi
+		   ;;
+		*) echo "Invalid Input"
+   	;; esac
+
+done
+
+
+
+if [ -s diff.txt ]
+then
+        rm -f empty.txt
+        touch full.txt
+else
+        rm -f full.txt
+        touch empty.txt
+fi
